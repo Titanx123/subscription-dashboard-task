@@ -1,58 +1,26 @@
 import mongoose from 'mongoose';
-import bcrypt from 'bcryptjs';
 
-const userSchema = new mongoose.Schema(
-  {
-    name: {
-      type: String,
-      required: [true, 'Name is required'],
-      trim: true,
-    },
-    email: {
-      type: String,
-      required: [true, 'Email is required'],
-      unique: true,
-      lowercase: true,
-      trim: true,
-    },
-    password: {
-      type: String,
-      required: [true, 'Password is required'],
-      minlength: 8,
-    },
-    role: {
-      type: String,
-      enum: ['user', 'admin'],
-      default: 'user',
-    },
-    refreshToken: {
-      type: String,
-      default: null,
-    },
-  },
-  {
-    timestamps: true,
-  }
-);
+const connectDB = async () => {
+  const mongoURL = process.env.MONGO_URL || 'mongodb://localhost:27017/subscription_dashboard';
 
-// Hash password before saving
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
-  
   try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error);
-  }
-});
+    await mongoose.connect(mongoURL, {
+      serverSelectionTimeoutMS: 5000,
+    });
 
-// Method to compare password
-userSchema.methods.comparePassword = async function (candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.password);
+    console.log('✅ Connected to MongoDB');
+
+    mongoose.connection.on('disconnected', () => {
+      console.warn('⚠️ MongoDB disconnected');
+    });
+
+    mongoose.connection.on('error', (err) => {
+      console.error('❌ MongoDB connection error:', err);
+    });
+  } catch (error) {
+    console.error('❌ Failed to connect to MongoDB:', error.message);
+    throw error;
+  }
 };
 
-const User = mongoose.model('User', userSchema);
-
-export default User;
+export default connectDB;
